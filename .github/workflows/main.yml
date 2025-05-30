@@ -2,13 +2,35 @@ name: CI, Release, and Docker
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
+  get-tag:
+    runs-on: ubuntu-22.04
+    outputs:
+      new_tag: ${{ steps.get_tag.outputs.new_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: get_tag
+        shell: bash
+        run: |
+          git fetch --tags
+          latest_tag=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+          if [ -z "$latest_tag" ]; then
+            new_tag="v0.0.1"
+          else
+            IFS='.' read -r major minor patch <<<"${latest_tag#v}"
+            patch=$((patch + 1))
+            new_tag="v${major}.${minor}.${patch}"
+          fi
+          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
+
   run-tests:
     name: Run Tests
     runs-on: ubuntu-22.04
+    needs: get-tag
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,7 +43,7 @@ jobs:
       - name: Install Ubuntu dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --fix-missing \
             freeglut3-dev \
             libcurl4-openssl-dev \
             libexpat1-dev \
@@ -64,7 +86,7 @@ jobs:
   build-win:
     name: Build Windows Packages
     runs-on: windows-latest
-    needs: run-tests
+    needs: [run-tests, get-tag]
     strategy:
       matrix:
         architecture: ["x64"]
@@ -176,9 +198,17 @@ jobs:
   build-and-push-docker:
     name: Build and Push Docker Image
     runs-on: ubuntu-22.04
-    needs: run-tests
+    needs: [run-tests, get-tag]
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Install toml
+        run: python3 -m pip install toml
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -189,23 +219,25 @@ jobs:
       - name: Extract version from pyproject.toml
         id: get_version
         run: |
-          VERSION=$(python3 -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+          VERSION=$(python3 -c "import toml; print(toml.load('pyproject.toml').get('project', {}).get('version') or toml.load('pyproject.toml').get('tool', {}).get('poetry', {}).get('version'))")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build Docker image
         run: |
-          docker build -t DOCKERHUB_USERNAME/DOCKERHUB_REPO:latest -t DOCKERHUB_USERNAME/DOCKERHUB_REPO:${{ steps.get_version.outputs.version }} .
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO }}:latest -t ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO }}:${{ needs.get-tag.outputs.new_tag }} .
 
       - name: Push Docker image
         run: |
-          docker push DOCKERHUB_USERNAME/DOCKERHUB_REPO:latest
-          docker push DOCKERHUB_USERNAME/DOCKERHUB_REPO:${{ steps.get_version.outputs.version }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO }}:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO }}:${{ needs.get-tag.outputs.new_tag }}
 
   publish_packages:
     name: Publish Packages and Release
-    needs: [build-win, build-and-push-docker]
+    needs: [build-win, build-and-push-docker, get-tag]
     runs-on: windows-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: invesalius_package_exe_ai-ready
@@ -222,25 +254,11 @@ jobs:
           echo "${{ github.event.head_commit.message }}" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Fetch latest tag
-        id: get_tag
-        run: |
-          git fetch --tags
-          latest_tag=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-          if [ -z "$latest_tag" ]; then
-            new_tag="v0.0.1"
-          else
-            IFS='.' read -r major minor patch <<<"${latest_tag#v}"
-            patch=$((patch + 1))
-            new_tag="v${major}.${minor}.${patch}"
-          fi
-          echo "new_tag=$new_tag" >> $GITHUB_OUTPUT
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_tag.outputs.new_tag }}
-          name: "Release ${{ steps.get_tag.outputs.new_tag }}"
+          tag_name: ${{ needs.get-tag.outputs.new_tag }}
+          name: "Release ${{ needs.get-tag.outputs.new_tag }}"
           body: ${{ steps.get_commit.outputs.desc }}
           draft: false
           prerelease: false
