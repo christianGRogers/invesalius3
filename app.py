@@ -332,31 +332,28 @@ def raycast_start(dicom_dir=None, raycast_mode=None, preleasion_points=None, pos
                     pre[1] = -pre[1]  # Invert Y coordinate for 3D tag
                     tag.Tag3D(pre, pre, "Pre-lesion point " + str(i))
                     # pre[1] = -pre[1]  # Invert Y coordinate for 2D tag
-                    current_axial_index = Slice().buffer_slices["AXIAL"].index
-                    tag.Tag2D(point1=pre, point2=pre, slice_number=current_axial_index, label="Pre-lesion point " + str(i))
-                    current_cornial_index = Slice().buffer_slices["CORONAL"].index
-                    tag.Tag2D(point1=pre, point2=pre, slice_number=current_cornial_index, label="Pre-lesion point " + str(i), location=const.CORONAL)
+                    
+                    tag.Tag2D(point1=pre, point2=pre, slice_number=int(pre[2]/const.SLICE_THICKNESS), label="Pre-lesion point " + str(i))
+                    
+                    tag.Tag2D(point1=pre, point2=pre, slice_number=int(pre[0]/const.SLICE_THICKNESS), label="Pre-lesion point " + str(i), location=const.CORONAL)
                     i += 1
                 i = 0
                 for post in postlesion_points:
                     post[1] = -post[1]  # Invert Y coordinate for 3D tag
                     tag.Tag3D(post, post, "Post-lesion point " + str(i))
-                    # post[1] = -post[1]  # Invert Y coordinate for 2D tagz
-                    current_axial_index = Slice().buffer_slices["AXIAL"].index
-                    tag.Tag2D(point1=post, point2=post, slice_number=current_axial_index, label="Post-lesion point " + str(i))
-                    current_cornial_index = Slice().buffer_slices["CORONAL"].index
-                    tag.Tag2D(point1=post, point2=post, slice_number=current_cornial_index, label="Post-lesion point " + str(i), location=const.CORONAL)
+
+                    tag.Tag2D(point1=post, point2=post, slice_number=int(post[2]/const.SLICE_THICKNESS), label="Post-lesion point " + str(i))
+                    
+                    tag.Tag2D(point1=post, point2=post, slice_number=int(post[0]/const.SLICE_THICKNESS), label="Post-lesion point " + str(i), location=const.CORONAL)
                     i += 1
                 for top, bottom in zip(top_points, bottom_points):
                     top[1] = -top[1]
                     bottom[1] = -bottom[1]
                     tag.Tag3D(top, bottom, "Stenosis " + str(i))
-                    # post[1] = -post[1]  # Invert Y coordinate for 2D tag
+
+                    tag.Tag2D(point1=top, point2=bottom, slice_number=int(bottom[2]/const.SLICE_THICKNESS), label="Stenosis " + str(i))
                     
-                    current_axial_index = Slice().buffer_slices["AXIAL"].index
-                    tag.Tag2D(point1=top, point2=bottom, slice_number=current_axial_index, label="Stenosis " + str(i))
-                    current_cornial_index = Slice().buffer_slices["CORONAL"].index
-                    tag.Tag2D(point1=top, point2=bottom, slice_number=current_cornial_index, label="Stenosis " + str(i), location=const.CORONAL)
+                    tag.Tag2D(point1=top, point2=bottom, slice_number=int(bottom[0]/const.SLICE_THICKNESS), label="Stenosis " + str(i), location=const.CORONAL)
                     import invesalius.data.coronary_fit as coronary_fit
                     fit = coronary_fit.CoronaryFit(top, bottom, int(top[2]/const.SLICE_THICKNESS), int(bottom[2]/const.SLICE_THICKNESS), "Stenosis", [])
                     
