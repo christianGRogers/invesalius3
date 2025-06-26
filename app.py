@@ -271,13 +271,10 @@ class Inv3SplashScreen(SplashScreen):
             session.CreateState()
 
     def OnClose(self, evt):
-        # Make sure the default handler runs too so this window gets
-        # destroyed
+
         evt.Skip()
         self.Hide()
 
-        # If the timer is still running then go ahead and show the
-        # main frame now
         if hasattr(self, "fc") and self.fc and self.fc.IsRunning():
             self.fc.Stop()
             self.ShowMain()
@@ -286,7 +283,6 @@ class Inv3SplashScreen(SplashScreen):
         if not self.main.IsShown():
             self.main.Show()
             self.main.Raise()
-        # Destroy the splash screen
         self.Destroy()
 
 
@@ -322,7 +318,6 @@ def raycast_start(dicom_dir=None, raycast_mode=None, preleasion_points=None, pos
             Publisher.sendMessage("Import directory", directory=dicom_dir, use_gui=True)
             if( preleasion_points and postlesion_points and top_points and bottom_points):
                 import invesalius.data.tag as tag
-                # Convert string coordinates to lists of integers
                 preleasion_points = eval(preleasion_points)
                 postlesion_points = eval(postlesion_points)
                 top_points = eval(top_points)
@@ -331,7 +326,7 @@ def raycast_start(dicom_dir=None, raycast_mode=None, preleasion_points=None, pos
                 for pre in preleasion_points:
                     pre[1] = -pre[1]  # Invert Y coordinate for 3D tag
                     tag.Tag3D(pre, pre, "Pre-lesion point " + str(i))
-                    # pre[1] = -pre[1]  # Invert Y coordinate for 2D tag
+                
                     
                     tag.Tag2D(point1=pre, point2=pre, slice_number=int(pre[2]/const.SLICE_THICKNESS), label="Pre-lesion point " + str(i))
                     
