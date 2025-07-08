@@ -1,4 +1,5 @@
 import numpy as np
+import time
 from invesalius.data.tag import DensityTag
 import invesalius.constants as const
 
@@ -12,6 +13,10 @@ class CoronaryFit:
         self.midpoints = midpoints  
 
     def add_density_tags(self):
+        # Start timeout timer
+        start_time = time.time()
+        timeout_duration = 30  # 30 seconds
+        
         # Prepare the ordered list of points for the path
         if self.point1[2] > self.point2[2]:
             points = [self.point1] + self.midpoints + [self.point2]
@@ -25,6 +30,11 @@ class CoronaryFit:
         all_maxs = []
 
         for i in range(len(points) - 1):
+            # Check for timeout at the start of each segment
+            if time.time() - start_time > timeout_duration:
+                print(f"Fitting terminated after {timeout_duration} seconds timeout")
+                break
+                
             x1, y1, z1 = points[i]
             x2, y2, z2 = points[i + 1]
 
@@ -46,6 +56,11 @@ class CoronaryFit:
             zs = np.linspace(z1, z2, num_slices)
 
             for idx, slice_num in enumerate(slice_range):
+                # Check for timeout
+                if time.time() - start_time > timeout_duration:
+                    print(f"Fitting terminated after {timeout_duration} seconds timeout")
+                    break
+                    
                 print(f"Adding density tag at slice {slice_num}")
                 tag = DensityTag(
                     xs[idx], ys[idx], zs[idx], self.label, location=const.AXIAL, slice_number=slice_num
@@ -60,6 +75,11 @@ class CoronaryFit:
                 
                 improved = True
                 while improved:
+                    # Check for timeout within the optimization loop
+                    if time.time() - start_time > timeout_duration:
+                        print(f"Fitting terminated after {timeout_duration} seconds timeout")
+                        break
+                        
                     improved = False
                     cx, cy, cz = tag.GetCenter()
                     best_mean = tag.GetMean()
@@ -92,6 +112,11 @@ class CoronaryFit:
                 shrink_step = 0.1
                 mean = tag.GetMean()
                 while mean < const.MIN_MEAN:
+                    # Check for timeout within the shrink loop
+                    if time.time() - start_time > timeout_duration:
+                        print(f"Fitting terminated after {timeout_duration} seconds timeout")
+                        break
+                        
                     tag.Update(-shrink_step)
                     mean = tag.GetMean()
 
