@@ -13,11 +13,9 @@ class CoronaryFit:
         self.midpoints = midpoints  
 
     def add_density_tags(self):
-        # Start timeout timer
         start_time = time.time()
-        timeout_duration = 30  # 30 seconds
+        timeout_duration = 30
         
-        # Prepare the ordered list of points for the path
         if self.point1[2] > self.point2[2]:
             points = [self.point1] + self.midpoints + [self.point2]
         else:
@@ -30,7 +28,6 @@ class CoronaryFit:
         all_maxs = []
 
         for i in range(len(points) - 1):
-            # Check for timeout at the start of each segment
             if time.time() - start_time > timeout_duration:
                 print(f"Fitting terminated after {timeout_duration} seconds timeout")
                 break
