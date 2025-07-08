@@ -103,29 +103,20 @@ class InVesalius(wx.App):
 
     def OnInit(self):
         """
-        Initialize splash screen and main frame.
+        Initialize main frame without splash screen.
         """
         from multiprocessing import freeze_support
 
         freeze_support()
 
         self.SetAppName("InVesalius 3")
-        self.splash = Inv3SplashScreen()
-        self.splash.Show()
-        wx.CallLater(1000, self.Startup2)
+        
+        # Skip splash screen and directly initialize main components
+        from invesalius.control import Controller
+        from invesalius.gui.frame import Frame
 
-        return True
-
-    def MacOpenFile(self, filename):
-        """
-        Open drag & drop files under darwin
-        """
-        path = os.path.abspath(filename)
-        Publisher.sendMessage("Open project", filepath=path)
-
-    def Startup2(self):
-        self.control = self.splash.control
-        self.frame = self.splash.main
+        self.frame = Frame(None)
+        self.control = Controller(self.frame)
         self.SetTopWindow(self.frame)
         self.frame.Show()
         self.frame.Raise()
@@ -136,12 +127,20 @@ class InVesalius(wx.App):
         # Initialize the legacy logging system for backward compatibility
         log.invLogger.configureLogging()
 
-        import wx
         args = parse_command_line()
         # Call raycast_start instead of tag_start
         print(f"Dicom directory: {args.dicom_dir}")
         print(f"Raycast mode: {args.raycast_mode}")
         wx.CallAfter(raycast_start, args.dicom_dir, args.raycast_mode, args.pre, args.post, args.top, args.bottom)
+
+        return True
+
+    def MacOpenFile(self, filename):
+        """
+        Open drag & drop files under darwin
+        """
+        path = os.path.abspath(filename)
+        Publisher.sendMessage("Open project", filepath=path)
 
 
 # ------------------------------------------------------------------
